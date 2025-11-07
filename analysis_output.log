@@ -1,0 +1,375 @@
+
+============================================================
+🚀 Bitcoin Trading Analysis System
+============================================================
+
+🔍 Starting analysis for: Bitcoin market today trading analysis
+
+============================================================
+╭────────────────────────────── 🤖 Agent Started ──────────────────────────────╮
+│                                                                              │
+│  Agent: Bitcoin News Researcher                                              │
+│                                                                              │
+│  Task: Search for the most recent articles about: Bitcoin market today       │
+│  trading analysis                                                            │
+│          Focus on articles from the past 24 hours. Retrieve up to 10 of the  │
+│  most relevant articles                                                      │
+│          from reputable financial news sources, cryptocurrency news sites,   │
+│  and major news outlets.                                                     │
+│          Include article titles, URLs, and brief descriptions.               │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────── Crew Execution Started ───────────────────────────╮
+│                                                                              │
+│  Crew Execution Started                                                      │
+│  Name: crew                                                                  │
+│  ID: 6d23d835-0c89-4624-86b9-8db158c484e5                                    │
+│  Tool Args:                                                                  │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ERROR:root:OpenAI API call failed: Error code: 429 - {'error': {'message': 'You 
+exceeded your current quota, please check your plan and billing details. For 
+more information on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+ERROR:root:OpenAI API call failed: Error code: 429 - {'error': {'message': 'You 
+exceeded your current quota, please check your plan and billing details. For 
+more information on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+An unknown error occurred. Please check the details below.
+Error details: Error code: 429 - {'error': {'message': 'You exceeded your 
+current quota, please check your plan and billing details. For more information 
+on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+🚀 Crew: crew
+└── 📋 Task: 409d550c-4ce5-4673-a00b-bcb67f59604b
+    Status: Executing Task...An unknown error occurred. Please check the details below.
+🚀 Crew: crew
+└── 📋 Task: 409d550c-4ce5-4673-a00b-bcb67f59604b
+    Status: Executing Task...[91mError details: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}[0m
+🚀 Crew: crew
+└── 📋 Task: 409d550c-4ce5-4673-a00b-bcb67f59604b
+    Status: Executing Task...
+╭───────────────────────────────── LLM Error ──────────────────────────────────╮
+│                                                                              │
+│  ❌ LLM Call Failed                                                          │
+│  Error: OpenAI API call failed: Error code: 429 - {'error': {'message':      │
+│  'You exceeded your current quota, please check your plan and billing        │
+│  details. For more information on this error, read the docs:                 │
+│  https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type':   │
+│  'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}         │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭───────────────────────────────── LLM Error ──────────────────────────────────╮
+│                                                                              │
+│  ❌ LLM Call Failed                                                          │
+│  Error: OpenAI API call failed: Error code: 429 - {'error': {'message':      │
+│  'You exceeded your current quota, please check your plan and billing        │
+│  details. For more information on this error, read the docs:                 │
+│  https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type':   │
+│  'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}         │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭────────────────────────────── 🤖 Agent Started ──────────────────────────────╮
+│                                                                              │
+│  Agent: Bitcoin News Researcher                                              │
+│                                                                              │
+│  Task: Search for the most recent articles about: Bitcoin market today       │
+│  trading analysis                                                            │
+│          Focus on articles from the past 24 hours. Retrieve up to 10 of the  │
+│  most relevant articles                                                      │
+│          from reputable financial news sources, cryptocurrency news sites,   │
+│  and major news outlets.                                                     │
+│          Include article titles, URLs, and brief descriptions.               │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ERROR:root:OpenAI API call failed: Error code: 429 - {'error': {'message': 'You 
+exceeded your current quota, please check your plan and billing details. For 
+more information on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+ERROR:root:OpenAI API call failed: Error code: 429 - {'error': {'message': 'You 
+exceeded your current quota, please check your plan and billing details. For 
+more information on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+An unknown error occurred. Please check the details below.
+Error details: Error code: 429 - {'error': {'message': 'You exceeded your 
+current quota, please check your plan and billing details. For more information 
+on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+An unknown error occurred. Please check the details below.
+Error details: Error code: 429 - {'error': {'message': 'You exceeded your 
+current quota, please check your plan and billing details. For more information 
+on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+🚀 Crew: crew
+└── 📋 Task: 409d550c-4ce5-4673-a00b-bcb67f59604b
+    Status: Executing Task...
+    └── ❌ LLM Failed
+╭───────────────────────────────── LLM Error ──────────────────────────────────╮
+│                                                                              │
+│  ❌ LLM Call Failed                                                          │
+│  Error: OpenAI API call failed: Error code: 429 - {'error': {'message':      │
+│  'You exceeded your current quota, please check your plan and billing        │
+│  details. For more information on this error, read the docs:                 │
+│  https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type':   │
+│  'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}         │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭───────────────────────────────── LLM Error ──────────────────────────────────╮
+│                                                                              │
+│  ❌ LLM Call Failed                                                          │
+│  Error: OpenAI API call failed: Error code: 429 - {'error': {'message':      │
+│  'You exceeded your current quota, please check your plan and billing        │
+│  details. For more information on this error, read the docs:                 │
+│  https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type':   │
+│  'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}         │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭────────────────────────────── 🤖 Agent Started ──────────────────────────────╮
+│                                                                              │
+│  Agent: Bitcoin News Researcher                                              │
+│                                                                              │
+│  Task: Search for the most recent articles about: Bitcoin market today       │
+│  trading analysis                                                            │
+│          Focus on articles from the past 24 hours. Retrieve up to 10 of the  │
+│  most relevant articles                                                      │
+│          from reputable financial news sources, cryptocurrency news sites,   │
+│  and major news outlets.                                                     │
+│          Include article titles, URLs, and brief descriptions.               │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ERROR:root:OpenAI API call failed: Error code: 429 - {'error': {'message': 'You 
+exceeded your current quota, please check your plan and billing details. For 
+more information on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+ERROR:root:OpenAI API call failed: Error code: 429 - {'error': {'message': 'You 
+exceeded your current quota, please check your plan and billing details. For 
+more information on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+An unknown error occurred. Please check the details below.
+Error details: Error code: 429 - {'error': {'message': 'You exceeded your 
+current quota, please check your plan and billing details. For more information 
+on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+🚀 Crew: crew
+└── 📋 Task: 409d550c-4ce5-4673-a00b-bcb67f59604b
+    Status: Executing Task...
+    ├── ❌ LLM Failed
+    └── ❌ LLM FailedAn unknown error occurred. Please check the details below.
+🚀 Crew: crew
+└── 📋 Task: 409d550c-4ce5-4673-a00b-bcb67f59604b
+    Status: Executing Task...
+    ├── ❌ LLM Failed
+    └── ❌ LLM FailedError details: Error code: 429 - {'error': {'message': 'You exceeded your 
+current quota, please check your plan and billing details. For more information 
+on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+🚀 Crew: crew
+└── 📋 Task: 409d550c-4ce5-4673-a00b-bcb67f59604b
+    Status: Executing Task...
+    ├── ❌ LLM Failed
+    └── ❌ LLM Failed🚀 Crew: crew
+└── 📋 Task: 409d550c-4ce5-4673-a00b-bcb67f59604b
+    Status: Executing Task...
+    ├── ❌ LLM Failed
+    └── ❌ LLM Failed
+╭───────────────────────────────── LLM Error ──────────────────────────────────╮
+│                                                                              │
+│  ❌ LLM Call Failed                                                          │
+│  Error: OpenAI API call failed: Error code: 429 - {'error': {'message':      │
+│  'You exceeded your current quota, please check your plan and billing        │
+│  details. For more information on this error, read the docs:                 │
+│  https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type':   │
+│  'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}         │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Traceback (most recent call last):
+  File "/Users/xinchenshen/Desktop/Vibe Coding/bitcoin_analyzer.py", line 481, 
+in <module>
+╭───────────────────────────────── LLM Error ──────────────────────────────────╮
+│                                                                              │
+│  ❌ LLM Call Failed                                                          │
+│  Error: OpenAI API call failed: Error code: 429 - {'error': {'message':      │
+│  'You exceeded your current quota, please check your plan and billing        │
+│  details. For more information on this error, read the docs:                 │
+│  https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type':   │
+│  'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}         │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭──────────────────────────────── Task Failure ────────────────────────────────╮
+│                                                                              │
+│  Task Failed                                                                 │
+│  Name: 409d550c-4ce5-4673-a00b-bcb67f59604b                                  │
+│  Agent: Bitcoin News Researcher                                              │
+│  Tool Args:                                                                  │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+    main()
+  File "/Users/xinchenshen/Desktop/Vibe Coding/bitcoin_analyzer.py", line 470, 
+in main
+    result = analyzer.analyze(topic)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/xinchenshen/Desktop/Vibe Coding/bitcoin_analyzer.py", line 346, 
+in analyze
+    result = self.crew.kickoff()
+             ^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/crew.py", line 707, in kickoff
+    result = self._run_sequential_process()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/crew.py", line 821, in _run_sequential_process
+    return self._execute_tasks(self.tasks)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/crew.py", line 927, in _execute_tasks
+    task_output = task.execute_sync(
+                  ^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/task.py", line 458, in execute_sync
+    return self._execute_core(agent, context, tools)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/task.py", line 585, in _execute_core
+    raise e  # Re-raise the exception after emitting the event
+    ^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/task.py", line 522, in _execute_core
+    result = agent.execute_task(
+             ^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/agent/core.py", line 514, in execute_task
+    result = self.execute_task(task, context, tools)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/agent/core.py", line 514, in execute_task
+    result = self.execute_task(task, context, tools)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/agent/core.py", line 513, in execute_task
+    raise e
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/agent/core.py", line 478, in execute_task
+    result = self._execute_without_timeout(task_prompt, task)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/agent/core.py", line 577, in _execute_without_timeout
+    return self.agent_executor.invoke(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/agents/crew_agent_executor.py", line 180, in invoke
+    formatted_answer = self._invoke_loop()
+                       ^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/agents/crew_agent_executor.py", line 288, in _invoke_loop
+    raise e
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/agents/crew_agent_executor.py", line 220, in _invoke_loop
+    answer = get_llm_response(
+             ^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/utilities/agent_utils.py", line 259, in get_llm_response
+    raise e
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/utilities/agent_utils.py", line 251, in get_llm_response
+    answer = llm.call(
+             ^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/llms/providers/openai/completion.py", line 186, in call
+    return self._handle_completion(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/llms/providers/openai/completion.py", line 404, in _handle_completion
+    raise e from e
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/crewai/llms/providers/openai/completion.py", line 320, in _handle_completion
+    response: ChatCompletion = self.client.chat.completions.create(**params)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/openai/_utils/_utils.py", line 286, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/openai/resources/chat/completions/completions.py", line 1156, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/openai/_base_client.py", line 1259, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, 
+stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^
+  File 
+"/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages
+/openai/_base_client.py", line 1047, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'You exceeded 
+your current quota, please check your plan and billing details. For more 
+information on this error, read the docs: 
+https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 
+'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+╭────────────────────────── Trace Batch Finalization ──────────────────────────╮
+│ ✅ Trace batch finalized with session ID:                                    │
+│ 2511bbc7-44e8-4a31-a961-4237b7958a50                                         │
+│                                                                              │
+│ 🔗 View here:                                                                │
+│ https://app.crewai.com/crewai_plus/ephemeral_trace_batches/2511bbc7-44e8-4a3 │
+│ 1-a961-4237b7958a50?access_code=TRACE-6353844c37                             │
+│ 🔑 Access Code: TRACE-6353844c37                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────── Crew Failure ────────────────────────────────╮
+│                                                                              │
+│  Crew Execution Failed                                                       │
+│  Name: crew                                                                  │
+│  ID: 6d23d835-0c89-4624-86b9-8db158c484e5                                    │
+│  Tool Args:                                                                  │
+│  Final Output:                                                               │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
