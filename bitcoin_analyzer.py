@@ -6,11 +6,10 @@ Analyzes recent Bitcoin articles and provides buy/sell recommendations
 import sys
 import os
 import json
-import base64
-from datetime import date
+import re
+from datetime import date, datetime
+from typing import Optional
 from pathlib import Path
-
-from openai import OpenAI
 
 # Check Python version
 MIN_PYTHON_VERSION = (3, 8)
@@ -135,100 +134,148 @@ search_tool = search_web_tool
 website_tool = read_website_tool
 
 def _fallback_persona() -> dict:
+    """Return the fixed AI investor profile (image stored locally in assets/)."""
     return {
-        "name": "Aurora Theta",
-        "title": "AI Market Strategist",
-        "bio": ("Aurora Theta examines digital asset flows and macro signals to place each day's bitcoin movements "
-                "in institutional context."),
-        "image_src": "https://via.placeholder.com/160?text=AI"
+        "name": "Avery S. Coinwright",
+        "title": "Chief Investment Strategist",
+        "bio": (
+            "Avery S. Coinwright synthesizes crypto market structure, ETF flows, "
+            "and macro currents to brief traders on intraday positioning."
+        ),
+        "image_src": "assets/ai-bitcoin-analyst.svg",
     }
 
 
-def generate_fake_investor() -> dict:
-    """Return (and cache) a fictional AI investor persona for today's date."""
-    today = date.today().isoformat()
-    cache_path = Path("persona_cache.json")
-    images_dir = Path("images")
-    images_dir.mkdir(parents=True, exist_ok=True)
+def _ensure_reports_dir() -> Path:
+    reports_dir = Path("reports")
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    return reports_dir
 
-    cache: dict = {}
-    if cache_path.exists():
+
+def _collect_archive_items(current_date: str, max_items: int = 30) -> list:
+    reports_dir = _ensure_reports_dir()
+    items = []
+
+    for html_path in reports_dir.glob("*.html"):
         try:
-            cache = json.loads(cache_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            cache = {}
-
-    cached = cache.get(today)
-    if cached:
-        image_src = cached.get("image_src")
-        if image_src and (image_src.startswith("http") or Path(image_src).exists()):
-            return cached
-
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return _fallback_persona()
-
-    client = OpenAI()
-
-    persona_prompt = (
-        "You are creating a fictional AI investor persona for a professional bitcoin market report. "
-        f"Seed the persona with today's date ({today}) so the persona is stable for the day. "
-        "Return STRICT JSON with keys name, title, bio. "
-        "The bio must be 1-2 sentences, written in a serious financial-press tone. "
-        "Example:\n"
-        "{\"name\": \"...\", \"title\": \"...\", \"bio\": \"...\"}"
-    )
+            report_date = datetime.strptime(html_path.stem, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        items.append(
+            {
+                "date": report_date,
+                "href": f"reports/{html_path.name}",
+            }
+        )
 
     try:
-        chat_response = client.chat.completions.create(
-            model=os.getenv("OPENAI_PERSONA_MODEL", "gpt-4o-mini"),
-            temperature=0.7,
-            messages=[
-                {"role": "system", "content": "You generate concise professional personas."},
-                {"role": "user", "content": persona_prompt}
-            ]
+        today_date = datetime.strptime(current_date, "%Y-%m-%d").date()
+    except ValueError:
+        today_date = date.today()
+
+    if not any(entry["date"] == today_date for entry in items):
+        items.append(
+            {
+                "date": today_date,
+                "href": f"reports/{current_date}.html",
+            }
         )
-        content = chat_response.choices[0].message.content.strip()
-        json_start = content.find("{")
-        json_end = content.rfind("}")
-        persona_data = _fallback_persona()
-        if json_start != -1 and json_end != -1:
-            persona_data = json.loads(content[json_start:json_end + 1])
-        persona = {
-            "name": persona_data.get("name", _fallback_persona()["name"]),
-            "title": persona_data.get("title", _fallback_persona()["title"]),
-            "bio": persona_data.get("bio", _fallback_persona()["bio"]),
-            "image_src": _fallback_persona()["image_src"]
-        }
-    except Exception:
-        return _fallback_persona()
 
-    image_prompt = (
-        f"Formal headshot photograph of {persona['name']}, {persona['title']}, financial analyst, "
-        "neutral studio lighting, looking at the camera, for use in a newspaper profile, no text, no logo."
-    )
+    items.sort(key=lambda entry: entry["date"], reverse=True)
+    return items[:max_items]
 
-    try:
-        image_response = client.images.generate(
-            model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1"),
-            prompt=image_prompt,
-            size="512x512"
-        )
-        image_data = image_response.data[0].b64_json
-        if image_data:
-            image_bytes = base64.b64decode(image_data)
-            safe_name = persona["name"].lower().replace(" ", "_").replace(".", "")
-            image_path = images_dir / f"{safe_name}_{today.replace('-', '')}.png"
-            with image_path.open("wb") as f:
-                f.write(image_bytes)
-            persona["image_src"] = image_path.as_posix()
-    except Exception:
-        # Keep fallback image_src
-        pass
 
-    cache[today] = persona
-    cache_path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+def _render_archive_links(archive_items: list) -> tuple[str, str]:
+    if not archive_items:
+        return '<li class="empty-state">No past reports available yet.</li>', date.today().isoformat()
 
+    list_items = []
+    for item in archive_items:
+        iso_date = item["date"].isoformat()
+        list_items.append(f'<li><a href="{item["href"]}">{iso_date}</a></li>')
+
+    min_date = archive_items[-1]["date"].isoformat()
+    return "\n          ".join(list_items), min_date
+
+
+def _save_daily_report_files(report_data: dict, html_output: str, current_date: str) -> None:
+    reports_dir = _ensure_reports_dir()
+    html_path = reports_dir / f"{current_date}.html"
+    json_path = reports_dir / f"{current_date}.json"
+    archive_html_output = html_output.replace('href="reports/', 'href="')
+
+    html_path.write_text(archive_html_output, encoding="utf-8")
+    json_path.write_text(json.dumps(report_data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _load_recent_report_summaries(limit: int = 7, exclude_date: Optional[str] = None) -> list:
+    reports_dir = Path("reports")
+    if not reports_dir.exists():
+        return []
+
+    entries = []
+    for json_path in reports_dir.glob("*.json"):
+        try:
+            report_date = datetime.strptime(json_path.stem, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+
+        iso_date = report_date.isoformat()
+        if exclude_date and iso_date == exclude_date:
+            continue
+
+        try:
+            data = json.loads(json_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        entries.append({"date": report_date, "data": data})
+
+    entries.sort(key=lambda entry: entry["date"], reverse=True)
+    return entries[:limit]
+
+
+def _build_history_context(recent_reports: list) -> str:
+    if not recent_reports:
+        return ""
+
+    lines = []
+    for entry in recent_reports:
+        iso_date = entry["date"].isoformat()
+        data = entry["data"]
+        summary = data.get("summary", {})
+        synthesis = summary.get("topline") or (data.get("market_synthesis") or [""])
+        if isinstance(synthesis, list):
+            synthesis_text = synthesis[0] if synthesis else ""
+        else:
+            synthesis_text = synthesis
+
+        recommendation = summary.get("recommendation") or ""
+        if not recommendation:
+            paragraphs = (data.get("recommendation") or {}).get("paragraphs", [])
+            recommendation = paragraphs[0] if paragraphs else ""
+
+        if not synthesis_text and not recommendation:
+            continue
+
+        snippet_parts = []
+        if synthesis_text:
+            snippet_parts.append(synthesis_text.strip())
+        if recommendation:
+            snippet_parts.append(f"Recommendation: {recommendation.strip()}")
+
+        if snippet_parts:
+            lines.append(f"- {iso_date}: " + " | ".join(snippet_parts))
+
+    return "\n".join(lines[: len(recent_reports)])
+
+
+def generate_fake_investor() -> dict:
+    """Return the fixed persona profile without calling external APIs."""
+    persona = _fallback_persona()
+    assets_dir = Path(persona["image_src"]).parent
+    if str(assets_dir) not in ("", "."):
+        assets_dir.mkdir(parents=True, exist_ok=True)
     return persona
 
 
@@ -304,12 +351,39 @@ class BitcoinAnalyzer:
     def setup_tasks(self):
         """Define tasks for each agent"""
         
+        default_topic = "Bitcoin market today trading analysis"
+        self._search_task_template = """Search for the most recent articles about: {topic}
+        Focus on articles from the past 24 hours. Retrieve up to 10 of the most relevant articles
+        from reputable financial news sources, cryptocurrency news sites, and major news outlets.
+        Include article titles, URLs, and brief descriptions."""
+
+        self._synthesis_task_base = """Using the article summaries from the reader agent, combine all
+        summaries into a comprehensive market analysis. Identify:
+        1. Common themes and patterns across articles
+        2. Overall market sentiment (bullish/bearish/neutral)
+        3. Key price levels or trends mentioned
+        4. Major catalysts or events
+        5. Conflicting information or uncertainties
+        6. Consensus views vs. outlier opinions
+
+        Create a unified view of the current Bitcoin market situation."""
+
+        self._analyst_task_base = """Based on the synthesized market analysis from the synthesis agent,
+        provide a clear trading recommendation for TODAY:
+
+        1. Recommendation: BUY, SELL, or HOLD
+        2. Confidence level: High, Medium, or Low
+        3. Key reasons supporting the recommendation
+        4. Risk factors to consider
+        5. Suggested entry/exit points (if applicable)
+        6. Time horizon for the recommendation
+
+        Be specific and actionable. Base your recommendation on the evidence
+        from the articles analyzed."""
+
         # Task 1: Search for recent articles
         self.search_task = Task(
-            description="""Search for the most recent Bitcoin articles from the past 24 hours.
-            Focus on articles from reputable financial news sources, cryptocurrency news sites,
-            and major news outlets. Retrieve up to 10 of the most relevant articles.
-            Include article titles, URLs, and brief descriptions.""",
+            description=self._search_task_template.format(topic=default_topic),
             agent=self.search_agent,
             expected_output="""A list of recent Bitcoin articles with:
             - Article titles
@@ -343,16 +417,7 @@ class BitcoinAnalyzer:
         
         # Task 3: Synthesize information
         self.synthesis_task = Task(
-            description="""Using the article summaries from the reader agent, combine all
-            summaries into a comprehensive market analysis. Identify:
-            1. Common themes and patterns across articles
-            2. Overall market sentiment (bullish/bearish/neutral)
-            3. Key price levels or trends mentioned
-            4. Major catalysts or events
-            5. Conflicting information or uncertainties
-            6. Consensus views vs. outlier opinions
-            
-            Create a unified view of the current Bitcoin market situation.""",
+            description=self._synthesis_task_base,
             agent=self.synthesis_agent,
             context=[self.reader_task],
             expected_output="""A comprehensive synthesis report with:
@@ -365,18 +430,7 @@ class BitcoinAnalyzer:
         
         # Task 4: Provide trading recommendation
         self.analyst_task = Task(
-            description="""Based on the synthesized market analysis from the synthesis agent,
-            provide a clear trading recommendation for TODAY:
-            
-            1. Recommendation: BUY, SELL, or HOLD
-            2. Confidence level: High, Medium, or Low
-            3. Key reasons supporting the recommendation
-            4. Risk factors to consider
-            5. Suggested entry/exit points (if applicable)
-            6. Time horizon for the recommendation
-            
-            Be specific and actionable. Base your recommendation on the evidence
-            from the articles analyzed.""",
+            description=self._analyst_task_base,
             agent=self.analyst_agent,
             context=[self.synthesis_task],
             expected_output="""A clear trading recommendation with:
@@ -430,22 +484,28 @@ class BitcoinAnalyzer:
         print(f"\n🔍 Starting analysis for: {topic}\n")
         print("=" * 60)
         
+        today_str = date.today().isoformat()
+        recent_reports = _load_recent_report_summaries(limit=7, exclude_date=today_str)
+        history_context = _build_history_context(recent_reports)
+        history_note = ""
+        if history_context:
+            history_note = "\n\nRecent Bitcoin market history from prior reports:\n" + history_context
+
         # Update search task with the topic
-        self.search_task.description = f"""Search for the most recent articles about: {topic}
-        Focus on articles from the past 24 hours. Retrieve up to 10 of the most relevant articles
-        from reputable financial news sources, cryptocurrency news sites, and major news outlets.
-        Include article titles, URLs, and brief descriptions."""
+        self.search_task.description = self._search_task_template.format(topic=topic) + history_note
+        self.synthesis_task.description = self._synthesis_task_base + history_note
+        self.analyst_task.description = self._analyst_task_base + history_note
         
         # Execute the crew
         persona = generate_fake_investor()
         result = self.crew.kickoff()
         
         # Extract HTML from the result and save it
-        self._save_html_output(result, persona)
+        self._save_html_output(result, persona, history_context)
         
         return result
     
-    def _save_html_output(self, result, persona):
+    def _save_html_output(self, result, persona, history_context: str = ""):
         """Extract and save HTML output from the website agent"""
         try:
             # Get the output from the website task
@@ -485,6 +545,9 @@ class BitcoinAnalyzer:
 
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html_content, "html.parser")
+            current_date = date.today().isoformat()
+            archive_items = _collect_archive_items(current_date)
+            archive_list_html, archive_min_date = _render_archive_links(archive_items)
 
             def extract_articles() -> list:
                 items = []
@@ -539,31 +602,159 @@ class BitcoinAnalyzer:
             synthesis = extract_synthesis()
             recommendation = extract_recommendation()
 
+            def shorten_text(text: str, max_chars: int = 120) -> str:
+                cleaned = re.sub(r"\s+", " ", text or "").strip()
+                if not cleaned:
+                    return ""
+                sentences = re.split(r"(?<=[.!?])\s+", cleaned)
+                snippet = sentences[0] if sentences else cleaned
+                if len(snippet) > max_chars:
+                    snippet = snippet[:max_chars].rsplit(" ", 1)[0] + "…"
+                return snippet
+
+            def unique_snippets(raw_items, max_items: int = 5, skip_keywords: Optional[set] = None) -> list:
+                skip_keywords = skip_keywords or set()
+                seen = set()
+                snippets = []
+                for raw in raw_items:
+                    snippet = shorten_text(raw)
+                    if not snippet:
+                        continue
+                    lowered = snippet.lower()
+                    if any(keyword in lowered for keyword in skip_keywords):
+                        continue
+                    if lowered in seen:
+                        continue
+                    seen.add(lowered)
+                    snippets.append(snippet)
+                    if len(snippets) >= max_items:
+                        break
+                return snippets
+
             article_items_html = "\n".join(
                 f'<li><a href="{item["href"]}" target="_blank" rel="noopener noreferrer">{item["title"]}</a></li>'
                 if item["href"] else f'<li>{item["title"]}</li>'
                 for item in articles
             ) or '<li>No recent articles were retrieved.</li>'
 
-            analysis_html = "\n".join(
-                f'<article class="analysis-entry"><p>{text}</p></article>' for text in analysis
-            ) or '<p class="empty-state">Analysis summaries are not available.</p>'
+            unique_analysis_snippets = []
+            seen_analysis = set()
+            for text in analysis:
+                snippet = shorten_text(text, max_chars=140)
+                key = snippet.lower()
+                if not snippet or key in seen_analysis:
+                    continue
+                seen_analysis.add(key)
+                unique_analysis_snippets.append(snippet)
 
-            synthesis_html = "\n".join(
-                f'<p>{paragraph}</p>' for paragraph in synthesis
-            ) or '<p class="empty-state">Market synthesis is not available.</p>'
+            analysis_bullets = []
+            max_articles = min(len(articles), len(unique_analysis_snippets), 6)
+            for idx in range(max_articles):
+                article = articles[idx]
+                summary = unique_analysis_snippets[idx] if idx < len(unique_analysis_snippets) else ""
+                title_html = (
+                    f'<a href="{article["href"]}" target="_blank" rel="noopener noreferrer">{article["title"]}</a>'
+                    if article["href"]
+                    else article["title"]
+                )
+                bullet_text = summary or "No concise summary available yet."
+                analysis_bullets.append(
+                    f'<li><span class="bullet-title">{title_html}</span><span class="bullet-text"> — {bullet_text}</span></li>'
+                )
 
-            recommendation_paragraphs = "\n".join(
-                f'<p>{para}</p>' for para in recommendation["paragraphs"]
+            analysis_html = (
+                "<ul class=\"analysis-brief\">" + "\n          ".join(analysis_bullets) + "</ul>"
+                if analysis_bullets
+                else '<p class="empty-state">Analysis summaries are not available.</p>'
             )
-            recommendation_lists = "\n".join(
-                "<ul>" + "".join(f"<li>{item}</li>" for item in lst) + "</ul>"
-                for lst in recommendation["lists"]
+
+            synthesis_sentences = []
+            for paragraph in synthesis:
+                synthesis_sentences.extend(re.split(r"(?<=[.!?])\s+", paragraph))
+            synthesis_points = unique_snippets(synthesis_sentences, max_items=4)
+            synthesis_points = [shorten_text(point, max_chars=160) for point in synthesis_points]
+            synthesis_html = (
+                "<ul class=\"synthesis-brief\">" + "\n          ".join(f"<li>{pt}</li>" for pt in synthesis_points) + "</ul>"
+                if synthesis_points
+                else '<p class="empty-state">Market synthesis is not available.</p>'
             )
-            if not recommendation_paragraphs and not recommendation_lists:
-                recommendation_block = '<p class="empty-state">No trading recommendation supplied.</p>'
-            else:
-                recommendation_block = recommendation_paragraphs + recommendation_lists
+
+            recommendation_lines = recommendation.get("paragraphs", [])
+            recommendation_summary = ""
+            confidence_summary = ""
+            for line in recommendation_lines:
+                lowered = line.lower()
+                if not recommendation_summary and "recommendation" in lowered:
+                    recommendation_summary = shorten_text(line, max_chars=120)
+                if not confidence_summary and "confidence" in lowered:
+                    confidence_summary = shorten_text(line, max_chars=120)
+            if not recommendation_summary:
+                recommendation_summary = "Recommendation: Not provided"
+            if not confidence_summary:
+                confidence_summary = "Confidence Level: Not provided"
+
+            recommendation_value = (
+                recommendation_summary.split(":", 1)[1].strip() if ":" in recommendation_summary else recommendation_summary
+            )
+            confidence_value = (
+                confidence_summary.split(":", 1)[1].strip() if ":" in confidence_summary else confidence_summary
+            )
+            recommendation_badge = f"Recommendation: {recommendation_value}"
+            confidence_badge = f"Confidence Level: {confidence_value}"
+
+            raw_rec_points = recommendation_lines[:]
+            for lst in recommendation.get("lists", []):
+                raw_rec_points.extend(lst)
+            rec_points = unique_snippets(
+                raw_rec_points,
+                max_items=4,
+                skip_keywords={
+                    "recommendation:",
+                    "confidence:",
+                    "confidence level",
+                    "key reasons",
+                    "risk factors",
+                    "suggested entry",
+                    "suggested exit",
+                    "time horizon",
+                    "summary:",
+                },
+            )
+            focus_sentence = (
+                f"Near term focus: {rec_points[0]}" if rec_points else "Near term focus: Monitor the $100K support and $106K resistance ranges closely."
+            )
+            follow_sentence = (
+                f"Next steps: {rec_points[1]}"
+                if len(rec_points) > 1
+                else "Next steps: Stay nimble and update positioning once momentum confirms a clear break."
+            )
+            recommendation_paragraph = (
+                f"Today's call is to {recommendation_value.upper()} with {confidence_value.lower()} confidence. "
+                f"{focus_sentence} {follow_sentence}"
+            )
+            recommendation_block = f'<p class="recommendation-summary">{recommendation_paragraph}</p>'
+
+            synthesis_topline = synthesis_points[0] if synthesis_points else ""
+
+            report_data = {
+                "date": current_date,
+                "generated_at": datetime.utcnow().isoformat() + "Z",
+                "persona": persona,
+                "articles": articles,
+                "analysis_entries": analysis,
+                "market_synthesis": synthesis,
+                "recommendation": recommendation,
+                "summary": {
+                    "topline": synthesis_topline,
+                    "recommendation": recommendation_paragraph,
+                    "confidence": confidence_badge,
+                    "badge_recommendation": recommendation_badge,
+                    "badge_confidence": confidence_badge,
+                    "recommendation_focus": focus_sentence,
+                    "recommendation_next": follow_sentence,
+                },
+                "history_context": history_context,
+            }
 
             persona_note = (
                 f"Daily commentary by {persona['name']}, AI-generated fictional market analyst."
@@ -618,6 +809,36 @@ class BitcoinAnalyzer:
       color: #4a4a4a;
       margin: 0;
     }}
+    header.masthead p.report-date {{
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #333333;
+      margin: 0.4rem 0 0;
+    }}
+    .headline-summary {{
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }}
+    .status-badge {{
+      display: inline-flex;
+      align-items: center;
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }}
+    .status-recommendation {{
+      background-color: #1f5135;
+      color: #f5fff8;
+    }}
+    .status-confidence {{
+      background-color: #0c4e78;
+      color: #edf7ff;
+    }}
     .persona-block {{
       display: flex;
       gap: 1.5rem;
@@ -663,6 +884,10 @@ class BitcoinAnalyzer:
     section {{
       margin-bottom: 2.5rem;
     }}
+    .archive-section {{
+      border-top: 1px solid #e0e0e0;
+      padding-top: 2rem;
+    }}
     section h2 {{
       font-size: 1.6rem;
       font-weight: 700;
@@ -687,30 +912,56 @@ class BitcoinAnalyzer:
       display: inline-block;
       padding: 0.2rem 0;
     }}
-    .analysis-entry {{
-      margin-bottom: 1.35rem;
-    }}
-    .analysis-entry p {{
-      margin: 0;
+    .archive-note {{
       font-size: 1rem;
-    }}
-    #market-synthesis p {{
+      color: #4a4a4a;
       margin: 0 0 1rem 0;
+    }}
+    .archive-list {{
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }}
+    .archive-list li {{
       font-size: 1rem;
+      margin-bottom: 0.4rem;
+    }}
+    .archive-list li a {{
+      color: #0b63ce;
+    }}
+    .analysis-brief,
+    .synthesis-brief,
+    .rec-points {{
+      list-style: disc;
+      padding-left: 1.5rem;
+      margin: 0;
+    }}
+    .analysis-brief li,
+    .synthesis-brief li,
+    .rec-points li {{
+      margin-bottom: 0.6rem;
+      font-size: 1rem;
+      line-height: 1.55;
+      color: #333333;
+    }}
+    .bullet-title {{
+      font-weight: 600;
+      color: #102542;
+    }}
+    .bullet-text {{
+      color: #2f3b48;
+    }}
+    .recommendation-summary {{
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #2f3b48;
+      margin: 0;
     }}
     .recommendation-box {{
       background-color: #fafafa;
       border: 1px solid #e0e0e0;
       padding: 1.5rem;
       font-size: 1rem;
-    }}
-    .recommendation-box ul {{
-      list-style: disc;
-      margin: 0 0 1rem 1.4rem;
-      padding: 0;
-    }}
-    .recommendation-box li {{
-      margin-bottom: 0.5rem;
     }}
     .email-signup {{
       border-top: 1px solid #e0e0e0;
@@ -787,7 +1038,13 @@ class BitcoinAnalyzer:
     <header class="masthead">
       <h1>Bitcoin Market Analysis Report</h1>
       <p class="subheading">Daily analysis of bitcoin price action, market flows, and key risks.</p>
+      <p class="report-date" id="report-date">Report Date: {current_date}</p>
     </header>
+
+    <div class="headline-summary" aria-label="Today&#39;s trading stance">
+      <span class="status-badge status-recommendation">{recommendation_badge}</span>
+      <span class="status-badge status-confidence">{confidence_badge}</span>
+    </div>
 
     <section class="persona-block" aria-label="AI Analyst Persona">
       <img src="{persona_image_src}" alt="{persona['name']} headshot portrait" />
@@ -799,14 +1056,15 @@ class BitcoinAnalyzer:
       </div>
     </section>
 
-    <main>
-      <section id="articles-found" aria-label="Articles Found" tabindex="0">
-        <h2>Articles Found</h2>
-        <ul class="article-list">
-          {article_items_html}
-        </ul>
-      </section>
+    <section class="archive-section" aria-label="Past Bitcoin Reports" tabindex="0">
+      <h2>Recent Reports</h2>
+      <p class="archive-note">Browse prior daily briefings for continuity in market context.</p>
+      <ul class="archive-list">
+          {archive_list_html}
+      </ul>
+    </section>
 
+    <main>
       <section id="article-analysis" aria-label="Article Analysis and Summaries" tabindex="0">
         <h2>Article Analysis &amp; Summaries</h2>
         {analysis_html}
@@ -832,6 +1090,13 @@ class BitcoinAnalyzer:
           <button aria-busy="false" aria-live="polite" id="send-report-btn" onclick="sendReport()" disabled>Send Report</button>
         </div>
         <div aria-live="assertive" id="email-message" role="alert"></div>
+      </section>
+
+      <section id="articles-found" aria-label="Articles Found" tabindex="0">
+        <h2>Articles Found</h2>
+        <ul class="article-list">
+          {article_items_html}
+        </ul>
       </section>
     </main>
 
@@ -921,6 +1186,8 @@ class BitcoinAnalyzer:
             output_path = os.path.join(os.getcwd(), "index.html")
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(html_output)
+
+            _save_daily_report_files(report_data, html_output, current_date)
             
             print(f"\n✨ HTML report saved to: {output_path}")
             print("   Email API reminder: EMAIL_API_PORT=5050 python3.11 email_api.py")
