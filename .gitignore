@@ -41,3 +41,10 @@ env/
 .DS_Store
 Thumbs.db
 
+# Generated persona assets
+persona_cache.json
+images/*.png
+images/*.jpg
+images/*.jpeg
+images/*.webp
+

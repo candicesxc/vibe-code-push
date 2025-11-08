@@ -1,0 +1,5 @@
+# Ignore generated persona images
+*.png
+*.jpg
+*.jpeg
+*.webp

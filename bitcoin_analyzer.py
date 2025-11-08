@@ -5,6 +5,12 @@ Analyzes recent Bitcoin articles and provides buy/sell recommendations
 
 import sys
 import os
+import json
+import base64
+from datetime import date
+from pathlib import Path
+
+from openai import OpenAI
 
 # Check Python version
 MIN_PYTHON_VERSION = (3, 8)
@@ -128,6 +134,104 @@ def read_website_tool(url: str) -> str:
 search_tool = search_web_tool
 website_tool = read_website_tool
 
+def _fallback_persona() -> dict:
+    return {
+        "name": "Aurora Theta",
+        "title": "AI Market Strategist",
+        "bio": ("Aurora Theta examines digital asset flows and macro signals to place each day's bitcoin movements "
+                "in institutional context."),
+        "image_src": "https://via.placeholder.com/160?text=AI"
+    }
+
+
+def generate_fake_investor() -> dict:
+    """Return (and cache) a fictional AI investor persona for today's date."""
+    today = date.today().isoformat()
+    cache_path = Path("persona_cache.json")
+    images_dir = Path("images")
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    cache: dict = {}
+    if cache_path.exists():
+        try:
+            cache = json.loads(cache_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            cache = {}
+
+    cached = cache.get(today)
+    if cached:
+        image_src = cached.get("image_src")
+        if image_src and (image_src.startswith("http") or Path(image_src).exists()):
+            return cached
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return _fallback_persona()
+
+    client = OpenAI()
+
+    persona_prompt = (
+        "You are creating a fictional AI investor persona for a professional bitcoin market report. "
+        f"Seed the persona with today's date ({today}) so the persona is stable for the day. "
+        "Return STRICT JSON with keys name, title, bio. "
+        "The bio must be 1-2 sentences, written in a serious financial-press tone. "
+        "Example:\n"
+        "{\"name\": \"...\", \"title\": \"...\", \"bio\": \"...\"}"
+    )
+
+    try:
+        chat_response = client.chat.completions.create(
+            model=os.getenv("OPENAI_PERSONA_MODEL", "gpt-4o-mini"),
+            temperature=0.7,
+            messages=[
+                {"role": "system", "content": "You generate concise professional personas."},
+                {"role": "user", "content": persona_prompt}
+            ]
+        )
+        content = chat_response.choices[0].message.content.strip()
+        json_start = content.find("{")
+        json_end = content.rfind("}")
+        persona_data = _fallback_persona()
+        if json_start != -1 and json_end != -1:
+            persona_data = json.loads(content[json_start:json_end + 1])
+        persona = {
+            "name": persona_data.get("name", _fallback_persona()["name"]),
+            "title": persona_data.get("title", _fallback_persona()["title"]),
+            "bio": persona_data.get("bio", _fallback_persona()["bio"]),
+            "image_src": _fallback_persona()["image_src"]
+        }
+    except Exception:
+        return _fallback_persona()
+
+    image_prompt = (
+        f"Formal headshot photograph of {persona['name']}, {persona['title']}, financial analyst, "
+        "neutral studio lighting, looking at the camera, for use in a newspaper profile, no text, no logo."
+    )
+
+    try:
+        image_response = client.images.generate(
+            model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1"),
+            prompt=image_prompt,
+            size="512x512"
+        )
+        image_data = image_response.data[0].b64_json
+        if image_data:
+            image_bytes = base64.b64decode(image_data)
+            safe_name = persona["name"].lower().replace(" ", "_").replace(".", "")
+            image_path = images_dir / f"{safe_name}_{today.replace('-', '')}.png"
+            with image_path.open("wb") as f:
+                f.write(image_bytes)
+            persona["image_src"] = image_path.as_posix()
+    except Exception:
+        # Keep fallback image_src
+        pass
+
+    cache[today] = persona
+    cache_path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+
+    return persona
+
+
 class BitcoinAnalyzer:
     def __init__(self):
         self.setup_agents()
@@ -187,15 +291,12 @@ class BitcoinAnalyzer:
         
         # Website Agent
         self.website_agent = Agent(
-            role='SEVENTEEN-Inspired Web Designer',
-            goal='Create a stunning SEVENTEEN-themed HTML report that displays all analysis results with K-pop boy group SEVENTEEN\'s energetic, synchronized, and colorful aesthetic',
-            backstory="""You are a web designer inspired by SEVENTEEN, the 13-member K-pop boy group known for their
-            synchronized performances, bright colorful aesthetics, and energetic vibe. You create websites that capture
-            SEVENTEEN's signature style: vibrant colors (cyan, pink, purple, orange), clean modern design, smooth
-            synchronized animations, and an upbeat, positive energy. You use SEVENTEEN's catchphrases like 'Fighting!',
-            'Let's go!', and their positive, encouraging tone. You make everything look fresh, dynamic, and perfectly
-            coordinated - just like SEVENTEEN's performances. The design should feel energetic, youthful, and full of
-            positive vibes while maintaining professionalism.""",
+            role='Financial News Layout Editor',
+            goal='Prepare clear sectioned HTML content for a professional financial article in the tone of major newspapers such as The New York Times.',
+            backstory="""You are a meticulous financial news layout editor. You produce semantic, well-structured HTML
+            containing only the essential sections of the Bitcoin report (Articles Found, Article Analysis & Summaries,
+            Market Synthesis, Final Trading Recommendation). Avoid decorative styling, animations, or bright colors.
+            Focus on clean markup (headings, paragraphs, lists) with informative text that can be restyled later.""",
             verbose=True,
             allow_delegation=False
         )
@@ -286,55 +387,21 @@ class BitcoinAnalyzer:
             - Entry/exit guidance"""
         )
         
-        # Task 5: Create HTML report
+        # Task 5: Create structured HTML content for the report
         self.website_task = Task(
-            description="""Create a stunning, SEVENTEEN-inspired HTML report (index.html) that includes:
-            
-            1. All article names/titles from the search results
-            2. All article analyses and summaries from the reader agent
-            3. The complete synthesis report from the synthesis agent
-            4. The final trading recommendation from the analyst agent
-            
-            Design requirements (SEVENTEEN aesthetic):
-            - Vibrant, bright color scheme inspired by SEVENTEEN: cyan (#00D9FF), pink (#FF69B4), purple (#9B59B6), orange (#FF8C00)
-            - Clean, modern design with synchronized animations (like SEVENTEEN's choreography)
-            - Energetic, positive tone throughout - use SEVENTEEN's catchphrases like 'Fighting!', 'Let's go!', 'We're going to make it!'
-            - Make it visually stunning with colorful gradients, smooth synchronized animations, and modern CSS
-            - Include sections for: Articles Found, Article Analysis, Market Synthesis, Final Recommendation
-            - Make the recommendation section stand out with a big, bold, energetic display
-            - Add synchronized animations and hover effects (like SEVENTEEN's synchronized dance moves)
-            - Use modern, clean fonts (like SEVENTEEN's clean aesthetic)
-            - Bright, energetic color palette with perfect coordination
-            - Make it mobile-responsive
-            - Positive, encouraging tone throughout - make it feel like SEVENTEEN's positive energy
-            
-            CRITICAL REQUIREMENTS:
-            - Display the current date prominently at the top of the page (update daily automatically using JavaScript)
-            - Add an email section with:
-              * A text input box for the user's email address
-              * A "Send Report" button that sends the report via email
-              * JavaScript to handle the email sending (connect to backend/API endpoint)
-              * Validation for email format
-              * Success/error messages after sending
-            - The date should be displayed in a clear, visible format (e.g., "Report Date: November 6, 2024")
-            - The email functionality should be integrated seamlessly into the SEVENTEEN design
-            
-            Write the complete HTML file with embedded CSS and JavaScript.
-            The HTML should be a complete, standalone file that captures SEVENTEEN's vibrant, energetic, synchronized aesthetic.
-            Include JavaScript to display the current date and handle email sending functionality.""",
+            description="""Produce clean, semantic HTML content (without inline styling) that contains the latest Bitcoin
+            report in clearly marked sections with the following IDs:
+            - #articles-found : includes an <h2> and an unordered list (<ul id="articles-list">) of up to 10 articles with anchors.
+            - #article-analysis : includes an <h2> and a series of <article> elements summarizing each article.
+            - #market-synthesis : includes an <h2> and several <p> elements summarising market synthesis points.
+            - #final-recommendation : includes an <h2>, paragraphs, and bullet lists describing recommendation, confidence,
+              reasons, risk factors, and suggested entry/exit points.
+            Keep the tone professional and data-driven. Avoid decorative language and do not include CSS or JavaScript.
+            The HTML will be restyled later, so focus on structure and clarity only.""",
             agent=self.website_agent,
             context=[self.search_task, self.reader_task, self.synthesis_task, self.analyst_task],
-            expected_output="""A complete HTML file (index.html) with:
-            - SEVENTEEN-inspired vibrant color design (cyan, pink, purple, orange)
-            - All article names displayed
-            - All analyses and summaries
-            - Complete synthesis report
-            - Final recommendation prominently displayed
-            - Current date displayed prominently (updates daily)
-            - Email input box and "Send Report" button
-            - Email sending functionality with JavaScript
-            - SEVENTEEN's positive, energetic tone throughout (Fighting!, Let's go!)
-            - Synchronized animations and modern, clean styling"""
+            expected_output="""Semantic HTML fragment with sections #articles-found, #article-analysis, #market-synthesis,
+            and #final-recommendation, each containing descriptive headings, paragraphs, and lists with up-to-date analysis."""
         )
     
     def setup_crew(self):
@@ -370,145 +437,15 @@ class BitcoinAnalyzer:
         Include article titles, URLs, and brief descriptions."""
         
         # Execute the crew
+        persona = generate_fake_investor()
         result = self.crew.kickoff()
         
         # Extract HTML from the result and save it
-        self._save_html_output(result)
+        self._save_html_output(result, persona)
         
         return result
     
-    def _add_email_form_and_date(self, html_content):
-        """Add email form and date display to HTML content"""
-        try:
-            from bs4 import BeautifulSoup
-            
-            soup = BeautifulSoup(html_content, 'html.parser')
-            
-            # Add date display script
-            date_script = soup.new_tag('script')
-            date_script.string = """
-            // Display current date
-            function updateDate() {
-                const now = new Date();
-                const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                const dateString = now.toLocaleDateString('en-US', options);
-                const dateElement = document.getElementById('report-date');
-                if (dateElement) {
-                    dateElement.textContent = 'Report Date: ' + dateString;
-                }
-            }
-            updateDate();
-            """
-            soup.head.append(date_script)
-            
-            # Add email form script
-            email_script = soup.new_tag('script')
-            email_script.string = """
-            async function sendReport() {
-                const emailInput = document.getElementById('user-email');
-                const email = emailInput.value.trim();
-                const statusDiv = document.getElementById('email-status');
-                
-                // Validate email
-                const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/;
-                if (!email || !emailPattern.test(email)) {
-                    statusDiv.textContent = 'Please enter a valid email address';
-                    statusDiv.style.color = '#FF8FC7'; // WCAG AA compliant lighter pink
-                    return;
-                }
-                
-                // Disable button and show loading
-                const sendBtn = document.getElementById('send-btn');
-                sendBtn.disabled = true;
-                sendBtn.textContent = 'Sending...';
-                statusDiv.textContent = 'Sending report...';
-                statusDiv.style.color = '#4DD0E1'; // WCAG AA compliant lighter cyan
-                
-                try {
-                    const response = await fetch('http://localhost:5050/send-report', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ email: email })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        statusDiv.textContent = '✅ Report sent successfully!';
-                        statusDiv.style.color = '#51cf66'; // High contrast green
-                        emailInput.value = '';
-                    } else {
-                        statusDiv.textContent = '❌ Error: ' + (data.error || 'Failed to send report');
-                        statusDiv.style.color = '#FF8FC7'; // WCAG AA compliant lighter pink
-                    }
-                } catch (error) {
-                    statusDiv.textContent = '❌ Error: Could not connect to server. Make sure the email API is running.';
-                    statusDiv.style.color = '#FF8FC7'; // WCAG AA compliant lighter pink
-                } finally {
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send Report';
-                }
-            }
-            """
-            soup.head.append(email_script)
-            
-            # Find body and add date display and email form at the top
-            body = soup.body
-            if body:
-                # Create date display with WCAG AA compliant colors
-                date_div = soup.new_tag('div', id='report-date')
-                date_div['style'] = 'text-align: center; font-size: 1.2rem; font-weight: bold; margin: 20px 0; padding: 15px; background: rgba(30, 30, 35, 0.8); border-radius: 10px; color: #FFB74D;'  # WCAG AA compliant
-                date_div.string = 'Report Date: Loading...'
-                
-                # Create email form section with WCAG AA compliant colors
-                email_section = soup.new_tag('section', id='email-section')
-                email_section['style'] = 'max-width: 600px; margin: 30px auto; padding: 25px; background: rgba(30, 30, 35, 0.8); border-radius: 15px; box-shadow: 0 0 20px rgba(255, 143, 199, 0.3);'
-                
-                email_title = soup.new_tag('h2')
-                email_title.string = '📧 Send Report via Email'
-                email_title['style'] = 'color: #FF8FC7; text-align: center; margin-bottom: 20px;'  # WCAG AA compliant lighter pink
-                email_section.append(email_title)
-                
-                email_form = soup.new_tag('div')
-                email_form['style'] = 'display: flex; flex-direction: column; gap: 15px;'
-                
-                email_input = soup.new_tag('input')
-                email_input['type'] = 'email'
-                email_input['id'] = 'user-email'
-                email_input['placeholder'] = 'Enter your email address'
-                email_input['style'] = 'padding: 12px; font-size: 1rem; border: 2px solid #4DD0E1; border-radius: 8px; background: rgba(255, 255, 255, 0.95); color: #1A1A1A; outline: none;'  # Light bg, dark text for WCAG AA
-                email_input['required'] = True
-                
-                send_btn = soup.new_tag('button')
-                send_btn['id'] = 'send-btn'
-                send_btn['onclick'] = 'sendReport()'
-                send_btn.string = 'Send Report'
-                send_btn['style'] = 'padding: 12px 30px; font-size: 1.1rem; font-weight: bold; background: #E91E63; color: white; border: none; border-radius: 8px; cursor: pointer; transition: transform 0.3s, box-shadow 0.3s;'  # Darker pink for WCAG AA
-                send_btn['onmouseover'] = "this.style.transform='scale(1.05)'; this.style.boxShadow='0 5px 20px rgba(233, 30, 99, 0.5)';"
-                send_btn['onmouseout'] = "this.style.transform='scale(1)'; this.style.boxShadow='none';"
-                
-                status_div = soup.new_tag('div')
-                status_div['id'] = 'email-status'
-                status_div['style'] = 'text-align: center; min-height: 25px; font-weight: 600; color: #FF8FC7;'  # WCAG AA compliant
-                
-                email_form.append(email_input)
-                email_form.append(send_btn)
-                email_form.append(status_div)
-                
-                email_section.append(email_form)
-                
-                # Insert at the beginning of body
-                body.insert(0, date_div)
-                body.insert(1, email_section)
-            
-            return str(soup)
-        except Exception as e:
-            print(f"Warning: Could not add email form and date: {e}")
-            return html_content
-    
-    def _save_html_output(self, result):
+    def _save_html_output(self, result, persona):
         """Extract and save HTML output from the website agent"""
         try:
             # Get the output from the website task
@@ -542,32 +479,451 @@ class BitcoinAnalyzer:
             # Clean up any markdown formatting
             html_content = html_content.replace("```html", "").replace("```", "").strip()
             
-            # Ensure it's valid HTML
+            # Ensure it's valid HTML (wrap if necessary)
             if not html_content.strip().startswith("<!DOCTYPE") and not html_content.strip().startswith("<html"):
-                # If the agent didn't provide full HTML, create a wrapper
-                html_content = f"""<!DOCTYPE html>
+                html_content = f"<!DOCTYPE html><html><body>{html_content}</body></html>"
+
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_content, "html.parser")
+
+            def extract_articles() -> list:
+                items = []
+                article_list = soup.find(id="articles-list")
+                if article_list:
+                    for li in article_list.find_all("li"):
+                        link = li.find("a")
+                        title = link.get_text(strip=True) if link else li.get_text(strip=True)
+                        href = link.get("href") if link else None
+                        if title:
+                            items.append({"title": title, "href": href})
+                return items
+
+            def extract_analysis() -> list:
+                entries = []
+                section = soup.find(id="article-analysis")
+                if section:
+                    for block in section.find_all(["article", "p"]):
+                        text = block.get_text(" ", strip=True)
+                        if text:
+                            entries.append(text)
+                return entries
+
+            def extract_synthesis() -> list:
+                paragraphs = []
+                section = soup.find(id="market-synthesis")
+                if section:
+                    for p_tag in section.find_all("p"):
+                        text = p_tag.get_text(" ", strip=True)
+                        if text:
+                            paragraphs.append(text)
+                return paragraphs
+
+            def extract_recommendation() -> dict:
+                result_data = {"paragraphs": [], "lists": []}
+                section = soup.find(id="final-recommendation")
+                if not section:
+                    return result_data
+                for child in section.find_all(["p", "ul", "ol"], recursive=False):
+                    if child.name == "p":
+                        text = child.get_text(" ", strip=True)
+                        if text:
+                            result_data["paragraphs"].append(text)
+                    elif child.name in ("ul", "ol"):
+                        items = [li.get_text(" ", strip=True) for li in child.find_all("li")]
+                        if items:
+                            result_data["lists"].append(items)
+                return result_data
+
+            articles = extract_articles()
+            analysis = extract_analysis()
+            synthesis = extract_synthesis()
+            recommendation = extract_recommendation()
+
+            article_items_html = "\n".join(
+                f'<li><a href="{item["href"]}" target="_blank" rel="noopener noreferrer">{item["title"]}</a></li>'
+                if item["href"] else f'<li>{item["title"]}</li>'
+                for item in articles
+            ) or '<li>No recent articles were retrieved.</li>'
+
+            analysis_html = "\n".join(
+                f'<article class="analysis-entry"><p>{text}</p></article>' for text in analysis
+            ) or '<p class="empty-state">Analysis summaries are not available.</p>'
+
+            synthesis_html = "\n".join(
+                f'<p>{paragraph}</p>' for paragraph in synthesis
+            ) or '<p class="empty-state">Market synthesis is not available.</p>'
+
+            recommendation_paragraphs = "\n".join(
+                f'<p>{para}</p>' for para in recommendation["paragraphs"]
+            )
+            recommendation_lists = "\n".join(
+                "<ul>" + "".join(f"<li>{item}</li>" for item in lst) + "</ul>"
+                for lst in recommendation["lists"]
+            )
+            if not recommendation_paragraphs and not recommendation_lists:
+                recommendation_block = '<p class="empty-state">No trading recommendation supplied.</p>'
+            else:
+                recommendation_block = recommendation_paragraphs + recommendation_lists
+
+            persona_note = (
+                f"Daily commentary by {persona['name']}, AI-generated fictional market analyst."
+            )
+            persona_image_src = persona.get("image_src") or _fallback_persona()["image_src"]
+
+            html_output = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Analysis Report - SEVENTEEN Edition 💎</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bitcoin Market Analysis Report</title>
+  <style>
+    :root {{
+      color-scheme: light;
+    }}
+    body {{
+      margin: 0;
+      font-family: "Georgia", "Times New Roman", serif;
+      background-color: #f8f7f5;
+      color: #111111;
+    }}
+    a {{
+      color: #0b63ce;
+      text-decoration: none;
+    }}
+    a:hover {{
+      text-decoration: underline;
+    }}
+    .page {{
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 4rem;
+      background-color: #ffffff;
+      min-height: 100vh;
+    }}
+    header.masthead {{
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 1.75rem;
+      margin-bottom: 1.75rem;
+    }}
+    header.masthead h1 {{
+      font-size: 2.4rem;
+      line-height: 1.2;
+      margin: 0 0 0.75rem 0;
+      font-weight: 700;
+      color: #111111;
+    }}
+    header.masthead p.subheading {{
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #4a4a4a;
+      margin: 0;
+    }}
+    .persona-block {{
+      display: flex;
+      gap: 1.5rem;
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 1.75rem;
+      margin-bottom: 2rem;
+      align-items: center;
+    }}
+    .persona-block img {{
+      width: 108px;
+      height: 108px;
+      object-fit: cover;
+      border-radius: 50%;
+      background-color: #ddd;
+      flex-shrink: 0;
+    }}
+    .persona-details {{
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }}
+    .persona-name {{
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #111111;
+    }}
+    .persona-title {{
+      font-size: 1.05rem;
+      color: #333333;
+    }}
+    .persona-bio {{
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #444444;
+    }}
+    .persona-note {{
+      font-size: 0.95rem;
+      color: #666666;
+    }}
+    main {{
+      line-height: 1.65;
+    }}
+    section {{
+      margin-bottom: 2.5rem;
+    }}
+    section h2 {{
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #333333;
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 0.75rem;
+      margin-bottom: 1.25rem;
+    }}
+    .article-list {{
+      list-style: disc;
+      padding-left: 1.4rem;
+      margin: 0;
+    }}
+    .article-list li {{
+      margin-bottom: 0.65rem;
+      font-size: 1rem;
+    }}
+    .article-list li:hover {{
+      background-color: #f3f3f3;
+    }}
+    .article-list li a {{
+      display: inline-block;
+      padding: 0.2rem 0;
+    }}
+    .analysis-entry {{
+      margin-bottom: 1.35rem;
+    }}
+    .analysis-entry p {{
+      margin: 0;
+      font-size: 1rem;
+    }}
+    #market-synthesis p {{
+      margin: 0 0 1rem 0;
+      font-size: 1rem;
+    }}
+    .recommendation-box {{
+      background-color: #fafafa;
+      border: 1px solid #e0e0e0;
+      padding: 1.5rem;
+      font-size: 1rem;
+    }}
+    .recommendation-box ul {{
+      list-style: disc;
+      margin: 0 0 1rem 1.4rem;
+      padding: 0;
+    }}
+    .recommendation-box li {{
+      margin-bottom: 0.5rem;
+    }}
+    .email-signup {{
+      border-top: 1px solid #e0e0e0;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 1.75rem 0;
+    }}
+    .email-signup h3 {{
+      font-size: 1.3rem;
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+      color: #333333;
+    }}
+    .email-form {{
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }}
+    .email-form input[type="email"] {{
+      flex: 1 1 280px;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid #c8c8c8;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-family: "Georgia", "Times New Roman", serif;
+      color: #111111;
+      background-color: #ffffff;
+    }}
+    .email-form input[type="email"]:focus {{
+      outline: 2px solid #0b63ce;
+      outline-offset: 2px;
+    }}
+    .email-form button {{
+      padding: 0.65rem 1.4rem;
+      border: 1px solid #0b63ce;
+      background-color: #0b63ce;
+      color: #ffffff;
+      font-size: 1rem;
+      font-family: "Georgia", "Times New Roman", serif;
+      border-radius: 4px;
+      cursor: pointer;
+    }}
+    .email-form button:disabled {{
+      background-color: #9fbce0;
+      border-color: #9fbce0;
+      cursor: not-allowed;
+    }}
+    #email-message {{
+      margin-top: 0.75rem;
+      font-size: 0.95rem;
+      color: #333333;
+    }}
+    footer.disclaimer {{
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e0e0e0;
+      font-size: 0.95rem;
+      color: #555555;
+      line-height: 1.6;
+    }}
+    @media (max-width: 640px) {{
+      .persona-block {{
+        flex-direction: column;
+        align-items: flex-start;
+      }}
+      .persona-block img {{
+        width: 88px;
+        height: 88px;
+      }}
+    }}
+  </style>
 </head>
 <body>
-{html_content}
+  <div class="page">
+    <header class="masthead">
+      <h1>Bitcoin Market Analysis Report</h1>
+      <p class="subheading">Daily analysis of bitcoin price action, market flows, and key risks.</p>
+    </header>
+
+    <section class="persona-block" aria-label="AI Analyst Persona">
+      <img src="{persona_image_src}" alt="{persona['name']} headshot portrait" />
+      <div class="persona-details">
+        <p class="persona-name">{persona['name']}</p>
+        <p class="persona-title">{persona['title']}</p>
+        <p class="persona-bio">{persona['bio']}</p>
+        <p class="persona-note">{persona_note}</p>
+      </div>
+    </section>
+
+    <main>
+      <section id="articles-found" aria-label="Articles Found" tabindex="0">
+        <h2>Articles Found</h2>
+        <ul class="article-list">
+          {article_items_html}
+        </ul>
+      </section>
+
+      <section id="article-analysis" aria-label="Article Analysis and Summaries" tabindex="0">
+        <h2>Article Analysis &amp; Summaries</h2>
+        {analysis_html}
+      </section>
+
+      <section id="market-synthesis" aria-label="Complete Market Synthesis Report" tabindex="0">
+        <h2>Market Synthesis</h2>
+        {synthesis_html}
+      </section>
+
+      <section id="final-recommendation" aria-label="Final Trading Recommendation" tabindex="0">
+        <h2>Final Trading Recommendation</h2>
+        <div class="recommendation-box">
+          {recommendation_block}
+        </div>
+      </section>
+
+      <section class="email-signup" id="email-section" aria-label="Email Report Section">
+        <h3>Receive the Report</h3>
+        <p>Enter your email address to have the daily summary delivered to your inbox.</p>
+        <div class="email-form">
+          <input aria-describedby="email-message" aria-required="true" autocomplete="email" id="user-email" placeholder="Enter your email address" required type="email" />
+          <button aria-busy="false" aria-live="polite" id="send-report-btn" onclick="sendReport()" disabled>Send Report</button>
+        </div>
+        <div aria-live="assertive" id="email-message" role="alert"></div>
+      </section>
+    </main>
+
+    <footer class="disclaimer">
+      <p>This report and analyst persona are AI generated for informational and educational purposes only and do not constitute financial advice. Always perform independent research or consult a licensed financial professional before making investment decisions.</p>
+    </footer>
+  </div>
+
+  <script>
+    function updateReportDate() {{
+      const dateElem = document.getElementById('report-date');
+      if (!dateElem) return;
+      const now = new Date();
+      const options = {{ year: 'numeric', month: 'long', day: 'numeric' }};
+      const formattedDate = now.toLocaleDateString('en-US', options);
+      dateElem.textContent = 'Report Date: ' + formattedDate;
+    }}
+    updateReportDate();
+
+    const emailInput = document.getElementById('user-email');
+    const sendBtn = document.getElementById('send-report-btn');
+    const emailMsg = document.getElementById('email-message');
+
+    function validateEmail(email) {{
+      const re = /^[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{{2,}}$/i;
+      return re.test(String(email).toLowerCase());
+    }}
+
+    window.sendReport = async function() {{
+      const email = emailInput.value.trim();
+      if (!validateEmail(email)) {{
+        emailMsg.textContent = 'Please enter a valid email address!';
+        emailMsg.style.color = '#b70000';
+        return;
+      }}
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Sending...';
+      emailMsg.textContent = 'Sending report...';
+      emailMsg.style.color = '#0f3c73';
+
+      try {{
+        const response = await fetch('http://localhost:5050/send-report', {{
+          method: 'POST',
+          headers: {{
+            'Content-Type': 'application/json',
+          }},
+          body: JSON.stringify({{ email }})
+        }});
+        const data = await response.json();
+        if (data.success) {{
+          emailMsg.textContent = 'Report sent successfully!';
+          emailMsg.style.color = '#146414';
+          emailInput.value = '';
+        }} else {{
+          emailMsg.textContent = 'Error: ' + (data.error || 'Failed to send report');
+          emailMsg.style.color = '#b70000';
+        }}
+      }} catch (error) {{
+        emailMsg.textContent = 'Error: Could not connect to server. Make sure the email API is running.';
+        emailMsg.style.color = '#b70000';
+      }} finally {{
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Report';
+      }}
+    }};
+
+    emailInput.addEventListener('input', () => {{
+      const isValid = validateEmail(emailInput.value.trim());
+      sendBtn.disabled = !isValid;
+      if (!isValid && emailInput.value.trim().length > 0) {{
+        emailMsg.textContent = 'Please enter a valid email address!';
+        emailMsg.style.color = '#b70000';
+      }} else {{
+        emailMsg.textContent = '';
+      }}
+    }});
+
+    window.addEventListener('load', () => {{
+      emailInput.focus();
+    }});
+  </script>
 </body>
-</html>"""
-            
-            # Add email form and date display
-            html_content = self._add_email_form_and_date(html_content)
-            
-            # Save to index.html
+</html>
+"""
+
             output_path = os.path.join(os.getcwd(), "index.html")
             with open(output_path, "w", encoding="utf-8") as f:
-                f.write(html_content)
+                f.write(html_output)
             
             print(f"\n✨ HTML report saved to: {output_path}")
-            print(f"   Open it in your browser to see the SEVENTEEN-inspired report! Fighting! 💪")
-            print(f"   Don't forget to start the email API: python3.11 email_api.py")
+            print("   Email API reminder: EMAIL_API_PORT=5050 python3.11 email_api.py")
             
         except Exception as e:
             print(f"\n⚠️  Warning: Could not save HTML output: {e}")
