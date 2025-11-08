@@ -612,12 +612,17 @@ class BitcoinAnalyzer:
                     snippet = snippet[:max_chars].rsplit(" ", 1)[0] + "…"
                 return snippet
 
-            def unique_snippets(raw_items, max_items: int = 5, skip_keywords: Optional[set] = None) -> list:
+            def unique_snippets(
+                raw_items,
+                max_items: int = 5,
+                skip_keywords: Optional[set] = None,
+                max_chars: int = 120,
+            ) -> list:
                 skip_keywords = skip_keywords or set()
                 seen = set()
                 snippets = []
                 for raw in raw_items:
-                    snippet = shorten_text(raw)
+                    snippet = shorten_text(raw, max_chars=max_chars)
                     if not snippet:
                         continue
                     lowered = snippet.lower()
@@ -630,6 +635,15 @@ class BitcoinAnalyzer:
                     if len(snippets) >= max_items:
                         break
                 return snippets
+
+            def format_labeled_sentence(label: str, snippet: str) -> str:
+                cleaned = re.sub(r"[.…]+$", "", (snippet or "").strip()).strip()
+                if not cleaned:
+                    return ""
+                if cleaned[-1] not in ".!?":
+                    cleaned = f"{cleaned}."
+                label = (label or "").strip()
+                return f"{label} {cleaned}" if label else cleaned
 
             article_items_html = "\n".join(
                 f'<li><a href="{item["href"]}" target="_blank" rel="noopener noreferrer">{item["title"]}</a></li>'
@@ -719,18 +733,25 @@ class BitcoinAnalyzer:
                     "time horizon",
                     "summary:",
                 },
+                max_chars=180,
             )
             focus_sentence = (
-                f"Near term focus: {rec_points[0]}" if rec_points else "Near term focus: Monitor the $100K support and $106K resistance ranges closely."
+                format_labeled_sentence("Near-term focus:", rec_points[0])
+                if rec_points
+                else "Near-term focus: Monitor the $100K support and $106K resistance ranges closely."
             )
             follow_sentence = (
-                f"Next steps: {rec_points[1]}"
+                format_labeled_sentence("Next steps:", rec_points[1])
                 if len(rec_points) > 1
                 else "Next steps: Stay nimble and update positioning once momentum confirms a clear break."
             )
-            recommendation_paragraph = (
-                f"Today's call is to {recommendation_value.upper()} with {confidence_value.lower()} confidence. "
-                f"{focus_sentence} {follow_sentence}"
+            primary_sentence = (
+                f"Today's call is to {recommendation_value.upper()} with {confidence_value.lower()} confidence."
+            )
+            recommendation_paragraph = " ".join(
+                part.strip()
+                for part in (primary_sentence, focus_sentence, follow_sentence)
+                if part.strip()
             )
             recommendation_block = f'<p class="recommendation-summary">{recommendation_paragraph}</p>'
 
